@@ -1,140 +1,106 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import UplotReact from "uplot-react";
 import "uplot/dist/uPlot.min.css";
-import DataMatTemp from "./DataMat.json";
-const DataMat = [...DataMatTemp];
 
 const options = {
-  width: 1600,
+  width: 800,
   height: 300,
   scales: {
     x: {
-      time: false
+      time: false,
     },
-    y: {}
+    y: {},
   },
   axes: [{}],
   series: [
     {},
     {
-      stroke: "blue"
-    }
-  ]
+      stroke: "blue",
+    },
+  ],
 };
 
-const Chart = ({ data }) => (
-  <UplotReact
-    options={options}
-    data={data}
-    onCreate={(chart) => {}}
-    onDelete={(chart) => {}}
-  />
-);
-
 const App = () => {
-  const [data, setData] = useState([[], []]);
-  let nullPositionStart = 0;
-  let nullPositionEnd = 0;
-  const numOfUpdates = 2_200;
+  let nullStart = 0;
+  let nullEnd = 2_200 * 15;
+  let nullCount = 2_200 * 5;
+  let stopIntervalFunctionPtr = null;
 
-  const generateFirstNulls = useCallback(() => {
-    // return value of this function shuld be a mix of nulls and values
-    // the first 2200 yValues should be nulls
-    // the rest should be values from DataMat
-    const nullNumber = 2_200 * 4;
-    const xValues = [];
-    const yValues = [];
+  const chartRef = useRef(null);
+  const [DataMat, setDataMat] = useState(null); // [x, y]
 
-    // Add null values at the beginning of yValues
-    for (let i = 0; i < nullNumber; i++) {
-      yValues.push(null);
+  const UpdateChart = () => {
+    // let temp = [... chartRef.current.data];
+    let temp = [...chartRef.current.data];
+    if (nullStart + nullCount > temp[1].length) {
+      nullStart = 0;
+      nullEnd = 2_200 * 4;
     }
-    for (let i = 0; i < nullNumber; i++) {
-      xValues.push(DataMat[0][i]);
+    // use nullStart nullEnd nullCount to update the data
+    for (let i = nullEnd; i < temp[1].length && i < nullEnd + nullCount; i++) {
+      temp[1][i] = null;
     }
-    // Add values from DataMat to yValues
-    for (let i = 0; i < DataMat[0].length - nullNumber; i++) {
-      xValues.push(DataMat[0][nullNumber + i]);
-      yValues.push(DataMat[1][nullNumber + i]);
+    for (let i = nullStart; i < nullStart + nullCount; i++) {
+      temp[1][i] = DataMat[1][i];
     }
-    console.log("xValues", xValues);
-    console.log("yValues", yValues);
-    const newValues = [[...xValues], [...yValues]];
-    nullPositionEnd = nullNumber;
-    setData(newValues);
-  }, []);
+    // update the nullStart nullEnd nullCount
+    nullStart = nullStart + nullCount;
+    nullEnd = nullEnd + nullCount;
+    chartRef.current.setData(temp);
+  };
 
   useEffect(() => {
-    generateFirstNulls();
+    // fetch the data from ./DataMat.json
+    fetch("./DataMat.json")
+      .then((response) => response.json())
+      .then((jsonData) => {
+        setDataMat(jsonData);
+      });
   }, []);
 
-  const updateChart = () => {
-    const xValues = [...data[0]];
-    const yValues = [...data[1]];
-
-    // Check if nullPositionStart needs to be reset
-    if (nullPositionStart + numOfUpdates >= yValues.length) {
-      nullPositionStart = 0;
-    }
-
-    // Reset Y-values to original values from DataMat
-    for (let i = nullPositionStart; i < nullPositionStart + numOfUpdates; i++) {
-      yValues[i] = DataMat[1][i];
-    }
-
-    // Set Y-values to null based on nullPositionEnd
-    for (let i = nullPositionEnd; i < nullPositionEnd + numOfUpdates; i++) {
-      yValues[i] = null;
-    }
-    const newValues = [[...xValues], [...yValues]];
-    console.log("newValues");
-    nullPositionStart += numOfUpdates;
-    nullPositionEnd += numOfUpdates;
-    return newValues;
+  const startAnimation = () => {
+    // set interval for every 1 second to update the data using UpdateChart function
+    const interval = setInterval(() => {
+      // console.time("UpdateChart");
+      UpdateChart();
+      // console.timeEnd("UpdateChart");
+    }, 100);
+    return () => clearInterval(interval);
   };
 
   return (
-    <>
-      <Chart data={data} />
+    <div className="App">
+      {
+        // if DataMat is not null then show UplotReact
+        DataMat && (
+          <UplotReact
+            options={options}
+            data={DataMat}
+            onCreate={(chart) => {
+              chartRef.current = chart;
+              console.log(chartRef.current);
+            }}
+            onDelete={(chart) => {}}
+            key={Math.random()}
+          />
+        )
+      }
+
       <button
-        onClick={() =>
-          setData((prevData) => {
-            const xValues = [...prevData[0]];
-            const yValues = [...prevData[1]];
-
-            // Check if nullPositionStart needs to be reset
-            if (nullPositionStart + numOfUpdates >= yValues.length) {
-              nullPositionStart = 0;
-            }
-
-            // Reset Y-values to original values from DataMat
-            for (
-              let i = nullPositionStart;
-              i < nullPositionStart + numOfUpdates;
-              i++
-            ) {
-              yValues[i] = DataMat[1][i];
-            }
-
-            // Set Y-values to null based on nullPositionEnd
-            for (
-              let i = nullPositionEnd;
-              i < nullPositionEnd + numOfUpdates;
-              i++
-            ) {
-              yValues[i] = null;
-            }
-            const newValues = [[...xValues], [...yValues]];
-            console.log("newValues");
-            nullPositionStart += numOfUpdates;
-            nullPositionEnd += numOfUpdates;
-            return newValues;
-          })
-        }
+        onClick={() => {
+          stopIntervalFunctionPtr = startAnimation();
+        }}
       >
-        button
+        start animation
       </button>
-    </>
+      <button
+        onClick={() => {
+          stopIntervalFunctionPtr();
+        }}
+      >
+        stop animation
+      </button>
+    </div>
   );
 };
 
