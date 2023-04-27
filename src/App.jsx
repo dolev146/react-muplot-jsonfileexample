@@ -3,34 +3,49 @@ import UplotReact from "uplot-react";
 import "uplot/dist/uPlot.min.css";
 
 const options = {
-  width: 800,
-  height: 300,
+  title: "Axis Control",
+  titleSize: 1,
+  width: 1050,
+  height: 100,
   scales: {
     x: {
       time: false,
+      range: [0, 100],
     },
-    y: {},
+    y: {
+      auto: false,
+      range: [-120, 120],
+    },
   },
-  axes: [{}],
   series: [
-    {},
     {
-      stroke: "blue",
+      height: 1,
+    },
+    {
+      stroke: "red",
+      width: 1,
+    },
+  ],
+  axes: [
+    {
+      labelSize: 1,
+    },
+    {
+      space: 50,
     },
   ],
 };
 
 const App = () => {
   let nullStart = 0;
-  let nullEnd = 2_200 * 15;
-  let nullCount = 2_200 * 5;
+  let nullEnd = 2_200 * 4;
+  let nullCount = 2_200;
   let stopIntervalFunctionPtr = null;
 
   const chartRef = useRef(null);
   const [DataMat, setDataMat] = useState(null); // [x, y]
 
   const UpdateChart = () => {
-    // let temp = [... chartRef.current.data];
     let temp = [...chartRef.current.data];
     if (nullStart + nullCount > temp[1].length) {
       nullStart = 0;
@@ -61,10 +76,10 @@ const App = () => {
   const startAnimation = () => {
     // set interval for every 1 second to update the data using UpdateChart function
     const interval = setInterval(() => {
-      // console.time("UpdateChart");
+      console.time("UpdateChart");
       UpdateChart();
-      // console.timeEnd("UpdateChart");
-    }, 100);
+      console.timeEnd("UpdateChart");
+    }, 10);
     return () => clearInterval(interval);
   };
 
